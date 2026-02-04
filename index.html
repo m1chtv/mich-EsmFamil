@@ -299,34 +299,21 @@
       let isOnline = false;
       let timerInterval = null;
 
-      const SUPABASE_URL = 'https://jpezvnqzecbuzsxrendd.supabase.co';
-      const SUPABASE_ANON_KEY = 'sb_publishable_LZ_UulW82sSCkzhztT3X8A_KEPanRtA';
-      
+      const SUPABASE_URL = "https://jpezvnqzecbuzsxrendd.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "sb_publishable_LZ_UulW82sSCkzhztT3X8A_KEPanRtA";
+
       let db = null;
       let realtimeChannel = null;
 
       function initializeSupabase() {
         try {
-          console.log('Checking Supabase availability...');
-          console.log('typeof supabase:', typeof supabase);
-          
-          if (typeof supabase === 'undefined' || !supabase.createClient) {
-            console.error('Supabase SDK is not loaded properly');
-            
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-            script.onload = function() {
-              console.log('Supabase loaded dynamically');
-              setupSupabase();
-            };
-            script.onerror = function() {
-              console.error('Failed to load Supabase dynamically');
-              updateConnectionStatus(false);
-            };
-            document.head.appendChild(script);
+          if (typeof supabase === "undefined" || !supabase.createClient) {
+            console.error("Supabase SDK is not loaded properly");
+            updateConnectionStatus(false);
             return false;
           }
-          
+
           return setupSupabase();
         } catch (error) {
           console.error("Failed to initialize Supabase:", error);
@@ -339,22 +326,14 @@
         try {
           db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
-              persistSession: false
-            }
+              persistSession: false,
+            },
           });
-          
-          db.from('rooms').select('count', { count: 'exact', head: true })
-            .then(() => {
-              isOnline = true;
-              updateConnectionStatus(true);
-              console.log("Supabase connected successfully");
-            })
-            .catch((error) => {
-              console.warn("Supabase connection test failed:", error);
-              isOnline = false;
-              updateConnectionStatus(false);
-            });
-          
+
+          isOnline = true;
+          updateConnectionStatus(true);
+          console.log("Supabase connected successfully");
+
           return true;
         } catch (error) {
           console.error("Error setting up Supabase:", error);
@@ -414,7 +393,7 @@
         document.getElementById("startBtn").disabled = false;
       }
 
-      function createRoom() {
+      async function createRoom() {
         user = document.getElementById("username").value.trim();
         if (!user) {
           alert("لطفا اسم خود را وارد کنید");
@@ -437,7 +416,7 @@
           return;
         }
 
-        setTimeout(() => {
+        setTimeout(async () => {
           if (!isOnline || !db) {
             if (confirm("اتصال برقرار نشد. بازی آفلاین شروع شود؟")) {
               startOfflineGame();
@@ -450,41 +429,33 @@
           userId = "user_" + Math.random().toString(36).slice(2, 9);
           room = Math.random().toString(36).slice(2, 7).toUpperCase();
 
-          db
-            .from('rooms')
-            .insert({
+          try {
+            const { error } = await db.from("rooms").insert({
               room_code: room,
               host_id: userId,
               host_name: user,
-              letter: '',
+              letter: "",
               timer: 60,
               game_started: false,
               game_over: false,
-              created_at: new Date().toISOString()
-            })
-            .then(({ data, error }) => {
-              if (error) {
-                console.error("Error creating room:", error);
-                throw error;
-              }
-              location.href = `?room=${room}&user=${encodeURIComponent(user)}&uid=${userId}`;
-            })
-            .catch((error) => {
-              document.getElementById("loading").classList.add("d-none");
-              console.error("Error creating room:", error);
-
-              if (
-                confirm(
-                  "اتصال به سرور برقرار نشد. آیا می‌خواهید بازی آفلاین را شروع کنید؟",
-                )
-              ) {
-                startOfflineGame();
-              }
+              created_at: new Date().toISOString(),
             });
-        }, 1000);
+
+            if (error) throw error;
+
+            location.href = `?room=${room}&user=${encodeURIComponent(user)}&uid=${userId}`;
+          } catch (error) {
+            console.error("Error creating room:", error);
+            document.getElementById("loading").classList.add("d-none");
+
+            if (confirm("اتصال به سرور برقرار نشد. بازی آفلاین شروع شود؟")) {
+              startOfflineGame();
+            }
+          }
+        }, 500);
       }
 
-      function joinRoom() {
+      async function joinRoom() {
         user = document.getElementById("username").value.trim();
         if (!user) {
           alert("لطفا اسم خود را وارد کنید");
@@ -506,30 +477,31 @@
 
         userId = "user_" + Math.random().toString(36).slice(2, 9);
 
-        setTimeout(() => {
+        setTimeout(async () => {
           if (!db) {
             alert("اتصال برقرار نشد");
             document.getElementById("loading").classList.add("d-none");
             return;
           }
 
-          db
-            .from('rooms')
-            .select('*')
-            .eq('room_code', roomCode.toUpperCase())
-            .single()
-            .then(({ data, error }) => {
-              if (error) throw new Error("این اتاق وجود ندارد");
-              location.href = `?room=${roomCode.toUpperCase()}&user=${encodeURIComponent(user)}&uid=${userId}`;
-            })
-            .catch((error) => {
-              document.getElementById("loading").classList.add("d-none");
-              showError(error.message);
-            });
-        }, 1000);
+          try {
+            const { data, error } = await db
+              .from("rooms")
+              .select("*")
+              .eq("room_code", roomCode.toUpperCase())
+              .single();
+
+            if (error) throw new Error("این اتاق وجود ندارد");
+
+            location.href = `?room=${roomCode.toUpperCase()}&user=${encodeURIComponent(user)}&uid=${userId}`;
+          } catch (error) {
+            document.getElementById("loading").classList.add("d-none");
+            showError(error.message);
+          }
+        }, 500);
       }
 
-      function initGame() {
+      async function initGame() {
         if (!room) return;
 
         user = decodeURIComponent(q.get("user") || "بازیکن");
@@ -559,61 +531,92 @@
         const inviteLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
         document.getElementById("invite").value = inviteLink;
 
-        setTimeout(() => {
+        setTimeout(async () => {
           if (!db) {
             showError("اتصال برقرار نشد");
             return;
           }
 
-          db
-            .from('rooms')
-            .select('*')
-            .eq('room_code', room)
-            .single()
-            .then(({ data: roomData, error }) => {
-              if (error) {
-                showError("این اتاق بازی وجود ندارد!");
-                setTimeout(() => {
-                  location.href = window.location.pathname;
-                }, 3000);
-                return;
-              }
+          try {
+            const { data: roomData, error: roomError } = await db
+              .from("rooms")
+              .select("*")
+              .eq("room_code", room)
+              .single();
 
-              isHost = roomData.host_id === userId;
+            if (roomError) {
+              showError("این اتاق بازی وجود ندارد!");
+              setTimeout(() => {
+                location.href = window.location.pathname;
+              }, 3000);
+              return;
+            }
 
-              const startBtn = document.getElementById("startBtn");
-              if (!isHost) {
-                startBtn.disabled = true;
-                startBtn.innerHTML =
-                  '<i class="bi bi-clock"></i> منتظر شروع میزبان';
-              }
+            isHost = roomData.host_id === userId;
+            updateUIForHostStatus(roomData);
 
-              db
-                .from('players')
-                .upsert({
-                  room_code: room,
-                  player_id: userId,
-                  player_name: user,
-                  joined_at: new Date().toISOString(),
-                  score: 0,
-                  answers: {
-                    name: "",
-                    family: "",
-                    city: "",
-                    country: "",
-                    fruit: "",
-                    object: "",
-                  }
-                })
-                .then(() => {
-                  setupSupabaseListeners();
-                });
-            })
-            .catch((error) => {
-              showError("خطا در اتصال به اتاق: " + error.message);
-              document.getElementById("loading").classList.add("d-none");
+            await db.from("players").upsert({
+              room_code: room,
+              player_id: userId,
+              player_name: user,
+              joined_at: new Date().toISOString(),
+              score: 0,
+              answers: {
+                name: "",
+                family: "",
+                city: "",
+                country: "",
+                fruit: "",
+                object: "",
+              },
             });
-        }, 1000);
+
+            setupSupabaseListeners();
+          } catch (error) {
+            showError("خطا در اتصال به اتاق: " + error.message);
+            document.getElementById("loading").classList.add("d-none");
+          }
+        }, 500);
+      }
+
+      function updateUIForHostStatus(roomData) {
+        const startBtn = document.getElementById("startBtn");
+
+        if (isHost) {
+          startBtn.disabled = false;
+          startBtn.innerHTML = '<i class="bi bi-play-fill"></i> شروع بازی';
+          startBtn.classList.remove("btn-secondary");
+          startBtn.classList.add("btn-warning");
+
+          if (roomData.game_started) {
+            startBtn.innerHTML = '<i class="bi bi-pause-fill"></i> توقف بازی';
+            document.getElementById("letter").textContent =
+              roomData.letter || "؟";
+            document.getElementById("timer").textContent = roomData.timer;
+
+            if (roomData.letter) {
+              enableInputs();
+            }
+          }
+        } else {
+          startBtn.disabled = true;
+          if (roomData.game_started) {
+            startBtn.innerHTML =
+              '<i class="bi bi-hourglass-split"></i> بازی شروع شده';
+            document.getElementById("letter").textContent =
+              roomData.letter || "؟";
+            document.getElementById("timer").textContent = roomData.timer;
+
+            if (roomData.letter) {
+              enableInputs();
+            }
+          } else {
+            startBtn.innerHTML =
+              '<i class="bi bi-clock"></i> منتظر شروع میزبان';
+          }
+          startBtn.classList.remove("btn-warning");
+          startBtn.classList.add("btn-secondary");
+        }
       }
 
       function setupSupabaseListeners() {
@@ -624,64 +627,96 @@
         }
 
         realtimeChannel = db
-          .channel('room-' + room)
-          .on('postgres_changes', 
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'players',
-              filter: `room_code=eq.${room}`
-            }, 
+          .channel("room-" + room)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "players",
+              filter: `room_code=eq.${room}`,
+            },
             (payload) => {
-              if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              if (
+                payload.eventType === "INSERT" ||
+                payload.eventType === "UPDATE"
+              ) {
                 updatePlayerList(payload.new);
+                checkHostAndUpdateUI();
               }
-              if (payload.eventType === 'DELETE') {
+              if (payload.eventType === "DELETE") {
                 removePlayer(payload.old.player_id);
               }
-            }
+            },
           )
-          .on('postgres_changes',
+          .on(
+            "postgres_changes",
             {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'rooms',
-              filter: `room_code=eq.${room}`
+              event: "UPDATE",
+              schema: "public",
+              table: "rooms",
+              filter: `room_code=eq.${room}`,
             },
             (payload) => {
               const roomData = payload.new;
-              document.getElementById("letter").textContent = roomData.letter || "؟";
-              document.getElementById("timer").textContent = roomData.timer;
-              
-              if (roomData.letter) {
-                enableInputs();
-              }
-              
-              if (roomData.timer === 0 || roomData.game_over) {
-                lockInputs();
-                if (isHost) {
-                  calculateResults();
-                }
-              }
-            }
+              checkGameStatus(roomData);
+            },
           )
           .subscribe();
+      }
+
+      async function checkHostAndUpdateUI() {
+        if (!room || !userId || !db) return;
+
+        try {
+          const { data: roomData, error } = await db
+            .from("rooms")
+            .select("host_id, game_started")
+            .eq("room_code", room)
+            .single();
+
+          if (error || !roomData) return;
+
+          isHost = roomData.host_id === userId;
+          updateUIForHostStatus(roomData);
+        } catch (error) {
+          console.error("Error checking host status:", error);
+        }
+      }
+
+      function checkGameStatus(roomData) {
+        document.getElementById("letter").textContent = roomData.letter || "؟";
+        document.getElementById("timer").textContent = roomData.timer;
+
+        if (roomData.letter) {
+          enableInputs();
+        }
+
+        updateUIForHostStatus(roomData);
+
+        if (roomData.timer === 0 || roomData.game_over) {
+          lockInputs();
+          if (isHost) {
+            calculateResults();
+          }
+        }
       }
 
       function updatePlayerList(player) {
         const liId = "p-" + player.player_id;
         let li = document.getElementById(liId);
-        
+
         if (!li) {
           li = document.createElement("li");
           li.id = liId;
-          li.innerHTML = `<i class="bi bi-person-fill"></i> ${player.player_name}`;
-          
+
           if (player.player_id === userId) {
             li.classList.add("you");
-            li.innerHTML += " <small>(شما)</small>";
+            li.innerHTML = `<i class="bi bi-person-fill"></i> ${player.player_name} <small>(شما)</small>`;
+          } else {
+            li.innerHTML = `<i class="bi bi-person-fill"></i> ${player.player_name}`;
           }
-          
+
           document.getElementById("playerList").appendChild(li);
         }
       }
@@ -706,20 +741,36 @@
         });
       }
 
-      function startGame() {
+      async function startGame() {
+        if (!isHost) {
+          alert("فقط میزبان می‌تواند بازی را شروع کند!");
+          return;
+        }
+
         const randomLetter =
           letters[Math.floor(Math.random() * letters.length)];
 
         if (isOnline && db) {
-          db
-            .from('rooms')
-            .update({
-              letter: randomLetter,
-              game_started: true,
-              game_over: false,
-              timer: 60
-            })
-            .eq('room_code', room);
+          try {
+            await db
+              .from("rooms")
+              .update({
+                letter: randomLetter,
+                game_started: true,
+                game_over: false,
+                timer: 60,
+              })
+              .eq("room_code", room);
+
+            document.getElementById("letter").textContent = randomLetter;
+            enableInputs();
+
+            const startBtn = document.getElementById("startBtn");
+            startBtn.innerHTML = '<i class="bi bi-pause-fill"></i> توقف بازی';
+          } catch (error) {
+            console.error("Error starting game:", error);
+            return;
+          }
         } else {
           document.getElementById("letter").textContent = randomLetter;
           enableInputs();
@@ -732,10 +783,7 @@
           timeLeft--;
 
           if (isOnline && db) {
-            db
-              .from('rooms')
-              .update({ timer: timeLeft })
-              .eq('room_code', room);
+            db.from("rooms").update({ timer: timeLeft }).eq("room_code", room);
           } else {
             document.getElementById("timer").textContent = timeLeft;
           }
@@ -743,10 +791,9 @@
           if (timeLeft <= 0) {
             clearInterval(timerInterval);
             if (isOnline && db) {
-              db
-                .from('rooms')
+              db.from("rooms")
                 .update({ game_over: true })
-                .eq('room_code', room);
+                .eq("room_code", room);
             } else {
               lockInputs();
               calculateOfflineResults();
@@ -755,7 +802,7 @@
         }, 1000);
       }
 
-      function stopGame() {
+      async function stopGame() {
         const answers = getAnswers();
 
         const filledCount = Object.values(answers).filter(
@@ -779,17 +826,21 @@
         }
 
         if (isOnline && db) {
-          db
-            .from('players')
-            .update({ answers: answers })
-            .eq('room_code', room)
-            .eq('player_id', userId);
+          try {
+            await db
+              .from("players")
+              .update({ answers: answers })
+              .eq("room_code", room)
+              .eq("player_id", userId);
 
-          if (isHost) {
-            db
-              .from('rooms')
-              .update({ timer: 0, game_over: true })
-              .eq('room_code', room);
+            if (isHost) {
+              await db
+                .from("rooms")
+                .update({ timer: 0, game_over: true })
+                .eq("room_code", room);
+            }
+          } catch (error) {
+            console.error("Error stopping game:", error);
           }
         } else {
           if (timerInterval) clearInterval(timerInterval);
@@ -824,31 +875,34 @@
           });
       }
 
-      function calculateResults() {
+      async function calculateResults() {
         if (!isOnline || !db) return;
 
-        db
-          .from('players')
-          .select('*')
-          .eq('room_code', room)
-          .then(({ data: players, error }) => {
-            if (error || !players) return;
+        try {
+          const { data: players, error } = await db
+            .from("players")
+            .select("*")
+            .eq("room_code", room);
 
-            const currentLetter = document.getElementById("letter").textContent;
-            const results = [];
+          if (error || !players) return;
 
-            players.forEach((player) => {
-              if (player.answers) {
-                results.push({
-                  name: player.player_name,
-                  answers: player.answers,
-                  score: 0,
-                });
-              }
-            });
+          const currentLetter = document.getElementById("letter").textContent;
+          const results = [];
 
-            calculateAndDisplayResults(results);
+          players.forEach((player) => {
+            if (player.answers) {
+              results.push({
+                name: player.player_name,
+                answers: player.answers,
+                score: 0,
+              });
+            }
           });
+
+          calculateAndDisplayResults(results);
+        } catch (error) {
+          console.error("Error calculating results:", error);
+        }
       }
 
       function calculateOfflineResults() {
@@ -902,7 +956,6 @@
         });
 
         results.sort((a, b) => b.score - a.score);
-
         displayResults(results);
       }
 
@@ -965,11 +1018,10 @@
 
       window.addEventListener("beforeunload", () => {
         if (db && room && userId) {
-          db
-            .from('players')
+          db.from("players")
             .delete()
-            .eq('room_code', room)
-            .eq('player_id', userId);
+            .eq("room_code", room)
+            .eq("player_id", userId);
         }
       });
 
