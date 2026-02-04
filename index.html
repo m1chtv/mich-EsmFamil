@@ -299,11 +299,10 @@
       let isOnline = false;
       let timerInterval = null;
 
-      // تنظیمات Supabase - اینها را با مقادیر پروژه خود جایگزین کنید
-      const SUPABASE_URL = 'https://yourtprojectid.supabase.co';
-      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+      const SUPABASE_URL = 'https://jpezvnqzecbuzsxrendd.supabase.co';
+      const SUPABASE_ANON_KEY = 'sb_publishable_LZ_UulW82sSCkzhztT3X8A_KEPanRtA';
       
-      let db = null; // کلاینت Supabase
+      let db = null;
       let realtimeChannel = null;
 
       function initializeSupabase() {
@@ -311,11 +310,9 @@
           console.log('Checking Supabase availability...');
           console.log('typeof supabase:', typeof supabase);
           
-          // بررسی وجود supabase در global scope
           if (typeof supabase === 'undefined' || !supabase.createClient) {
             console.error('Supabase SDK is not loaded properly');
             
-            // تلاش برای بارگیری مجدد
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
             script.onload = function() {
@@ -346,7 +343,6 @@
             }
           });
           
-          // تست اتصال
           db.from('rooms').select('count', { count: 'exact', head: true })
             .then(() => {
               isOnline = true;
@@ -441,7 +437,6 @@
           return;
         }
 
-        // کمی صبر برای اطمینان از اتصال
         setTimeout(() => {
           if (!isOnline || !db) {
             if (confirm("اتصال برقرار نشد. بازی آفلاین شروع شود؟")) {
@@ -455,7 +450,6 @@
           userId = "user_" + Math.random().toString(36).slice(2, 9);
           room = Math.random().toString(36).slice(2, 7).toUpperCase();
 
-          // ذخیره در Supabase
           db
             .from('rooms')
             .insert({
@@ -512,7 +506,6 @@
 
         userId = "user_" + Math.random().toString(36).slice(2, 9);
 
-        // چک کردن وجود اتاق در Supabase
         setTimeout(() => {
           if (!db) {
             alert("اتصال برقرار نشد");
@@ -566,7 +559,6 @@
         const inviteLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
         document.getElementById("invite").value = inviteLink;
 
-        // دریافت اطلاعات اتاق از Supabase
         setTimeout(() => {
           if (!db) {
             showError("اتصال برقرار نشد");
@@ -596,7 +588,6 @@
                   '<i class="bi bi-clock"></i> منتظر شروع میزبان';
               }
 
-              // ذخیره بازیکن در Supabase
               db
                 .from('players')
                 .upsert({
@@ -632,7 +623,6 @@
           return;
         }
 
-        // Real-time برای بازیکنان
         realtimeChannel = db
           .channel('room-' + room)
           .on('postgres_changes', 
@@ -953,7 +943,6 @@
         }
       }
 
-      // Show Error
       function showError(message) {
         const errorAlert = document.getElementById("errorAlert");
         errorAlert.textContent = message;
