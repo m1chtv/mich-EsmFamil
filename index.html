@@ -310,11 +310,11 @@
 
       function initializeSupabase() {
         try {
-          if (typeof supabase === "undefined") {
+          if (typeof window.supabase === "undefined") {
             throw new Error("Supabase not loaded");
           }
 
-          supabase = window.supabase.createClient(
+          supabaseClient = window.supabase.createClient(
             SUPABASE_URL,
             SUPABASE_ANON_KEY,
           );
@@ -396,7 +396,7 @@
         userId = "user_" + Math.random().toString(36).slice(2, 9);
         room = Math.random().toString(36).slice(2, 7).toUpperCase();
 
-        supabase
+        supabaseClient
           .from("rooms")
           .insert({
             room_code: room,
@@ -448,7 +448,7 @@
 
         userId = "user_" + Math.random().toString(36).slice(2, 9);
 
-        supabase
+        supabaseClient
           .from("rooms")
           .select("*")
           .eq("room_code", roomCode.toUpperCase())
@@ -493,7 +493,7 @@
         const inviteLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
         document.getElementById("invite").value = inviteLink;
 
-        supabase
+        supabaseClient
           .from("rooms")
           .select("*")
           .eq("room_code", room)
@@ -516,7 +516,7 @@
                 '<i class="bi bi-clock"></i> منتظر شروع میزبان';
             }
 
-            supabase
+            supabaseClient
               .from("players")
               .upsert({
                 room_code: room,
@@ -544,12 +544,14 @@
       }
 
       function setupSupabaseListeners() {
-        if (!supabase) {
+        if (!supabaseClient) {
           console.log("Using localStorage fallback");
           setupLocalStorageListeners();
           return;
         }
-        supabaseChannel = supabase
+
+        // Real-time برای بازیکنان
+        supabaseChannel = supabaseClient
           .channel("room-" + room)
           .on(
             "postgres_changes",
@@ -642,8 +644,8 @@
         const randomLetter =
           letters[Math.floor(Math.random() * letters.length)];
 
-        if (isOnline && supabase) {
-          supabase
+        if (isOnline && supabaseClient) {
+          supabaseClient
             .from("rooms")
             .update({
               letter: randomLetter,
@@ -663,8 +665,8 @@
         timerInterval = setInterval(() => {
           timeLeft--;
 
-          if (isOnline && supabase) {
-            supabase
+          if (isOnline && supabaseClient) {
+            supabaseClient
               .from("rooms")
               .update({ timer: timeLeft })
               .eq("room_code", room);
@@ -674,8 +676,8 @@
 
           if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            if (isOnline && supabase) {
-              supabase
+            if (isOnline && supabaseClient) {
+              supabaseClient
                 .from("rooms")
                 .update({ game_over: true })
                 .eq("room_code", room);
@@ -710,15 +712,15 @@
           }
         }
 
-        if (isOnline && supabase) {
-          supabase
+        if (isOnline && supabaseClient) {
+          supabaseClient
             .from("players")
             .update({ answers: answers })
             .eq("room_code", room)
             .eq("player_id", userId);
 
           if (isHost) {
-            supabase
+            supabaseClient
               .from("rooms")
               .update({ timer: 0, game_over: true })
               .eq("room_code", room);
@@ -757,9 +759,9 @@
       }
 
       function calculateResults() {
-        if (!isOnline || !supabase) return;
+        if (!isOnline || !supabaseClient) return;
 
-        supabase
+        supabaseClient
           .from("players")
           .select("*")
           .eq("room_code", room)
@@ -896,8 +898,8 @@
       }
 
       window.addEventListener("beforeunload", () => {
-        if (supabase && room && userId) {
-          supabase
+        if (supabaseClient && room && userId) {
+          supabaseClient
             .from("players")
             .delete()
             .eq("room_code", room)
